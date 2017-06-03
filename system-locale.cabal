@@ -17,7 +17,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     System.Locale.Read
   build-depends:       base >= 4.7 && < 5
-                     , megaparsec >= 5.0 && < 5.2
+                     , megaparsec >= 5.0 && < 5.3
                      , process >= 1.2 && < 1.5
                      , time >= 1.5 && < 1.8
   ghc-options:         -Wall
