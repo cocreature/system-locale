@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 {-| Read locales on unix systems and parse them into their corresponding 'TimeLocale' representation.
 -}
 module System.Locale.Read
@@ -13,12 +14,13 @@ import           Control.Exception
 import           Data.Attoparsec.Text
 import qualified Data.Text as Text
 import           Data.Time.Format (TimeLocale(..))
+import           Data.Typeable
 import           System.Process
 
 -- | Thrown when the locale cannot be parsed
 data LocaleParseException =
   LocaleParseException String
-  deriving (Show,Eq)
+  deriving (Show,Eq,Typeable)
 
 instance Exception LocaleParseException
 
