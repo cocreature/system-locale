@@ -1,5 +1,5 @@
 name:                system-locale
-version:             0.2.0.0
+version:             0.3.0.0
 synopsis:            Get system locales
 description:         Get system locales in a format suitable for the time library
 homepage:            https://github.com/cocreature/system-locale
@@ -20,9 +20,10 @@ library
   exposed-modules:     System.Locale.Read
   build-depends:       attoparsec >= 0.13 && < 0.14
                      , base >= 4.7 && < 5
-                     , process >= 1.2 && < 1.7
+                     , process >= 1.4.3.0 && < 1.7
                      , time >= 1.5 && < 1.9
                      , text >= 1.2 && < 1.3
+                     , bytestring >= 0.10 && < 0.11
   ghc-options:         -Wall
   default-language:    Haskell2010
 

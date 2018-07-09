@@ -12,14 +12,21 @@ module System.Locale.Read
 import           Control.Applicative
 import           Control.Exception
 import           Data.Attoparsec.Text
-import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
+import qualified Data.Text.Encoding.Error as Text
+import qualified Data.ByteString as BS
 import           Data.Time.Format (TimeLocale(..))
 import           Data.Typeable
 import           System.Process
+import           System.Environment
+import           System.Exit (ExitCode(..))
+import           Data.List (isPrefixOf)
 
 -- | Thrown when the locale cannot be parsed
-data LocaleParseException =
-  LocaleParseException String
+data LocaleParseException
+  = LocaleParseException String
+  | LocaleUtf8Exception Text.UnicodeException
+  | LocaleExitException ExitCode
   deriving (Show,Eq,Typeable)
 
 instance Exception LocaleParseException
@@ -57,8 +64,16 @@ parseLocale = do
 -- > getLocale (Just "en_US.UTF-8")
 getLocale :: Maybe String -> IO TimeLocale
 getLocale localeName = do
-  output <- readCreateProcess (getLocaleProcess localeName) ""
-  case parseOnly (parseLocale <* endOfInput) (Text.pack output) of
+  process <- getLocaleProcess localeName
+  output <- withCreateProcess process $
+    \_stdin (Just stdout) _stderr ph -> do
+      bsOutput <- BS.hGetContents stdout
+      exitCode <- waitForProcess ph
+      case exitCode of
+        ExitSuccess       -> return ()
+        e@(ExitFailure _) -> throwIO $ LocaleExitException e
+      either (throwIO . LocaleUtf8Exception) return $ Text.decodeUtf8' bsOutput
+  case parseOnly (parseLocale <* endOfInput) output of
     Left err -> throwIO (LocaleParseException err)
     Right locale -> pure locale
 
@@ -71,18 +86,20 @@ getLocale localeName = do
 getCurrentLocale :: IO TimeLocale
 getCurrentLocale = getLocale Nothing
 
-getLocaleProcess :: Maybe String -> CreateProcess
-getLocaleProcess localeName =
-  (proc "locale"
-        ["abday"
-        ,"day"
-        ,"abmon"
-        ,"mon"
-        ,"am_pm"
-        ,"d_t_fmt"
-        ,"d_fmt"
-        ,"t_fmt"
-        ,"t_fmt_ampm"]) {env = toLangEnv <$> localeName}
+getLocaleProcess :: Maybe String -> IO CreateProcess
+getLocaleProcess localeName = do
+  oldEnv <- getEnvironment
+  return $ (proc "locale"
+             [ "abday"
+             , "day"
+             , "abmon"
+             , "mon"
+             , "am_pm"
+             , "d_t_fmt"
+             , "d_fmt"
+             , "t_fmt"
+             , "t_fmt_ampm"
+             ]) { std_out = CreatePipe, env = toLangEnv oldEnv <$> localeName}
 
 newline :: Parser Char
 newline = char '\n'
@@ -93,5 +110,5 @@ parseSemicolonSeparatedLine =
   where
     finalChar c = c == ';' || c == '\n'
 
-toLangEnv :: String -> [(String,String)]
-toLangEnv s = [("LC_TIME",s)]
+toLangEnv :: [(String, String)] -> String -> [(String,String)]
+toLangEnv oldEnv s = ("LC_ALL", s) : [ e | e@(k, _) <- oldEnv, not $ "LC_" `isPrefixOf` k ]
